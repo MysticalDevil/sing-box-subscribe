@@ -12,13 +12,13 @@ Please refer to: [http://sing-box.sagernet.org/configuration](http://sing-box.sa
 
 ## Feature
 
-**sing-box web parser**
+## sing-box web parser
 
 Use the website you built to achieve real-time configuration updates, which can serve as the remote link of sing-box
 
 For example, the website I built [https://sing-box-subscribe.vercel.app](https://sing-box-subscribe.vercel.app), add `/config/URL_LINK` after the website, here` URL_LINK` refers to the subscription link
 
-```
+```text
 https://xxxxxxx.vercel.app/config/https://xxxxxxsubscribe?token=123456&file=https://github.com/Toperlock/sing-box-subscribe/raw/main/config_template/config_template_groups_rule_set_tun.json
 ```
 
@@ -116,7 +116,7 @@ ios with the shortcut command to copy the content of the web page, or too much c
 
 Android use chrome browser to open the webpage to generate the configuration file (please go to the browser Settings - Accessibility to reduce the webpage), long press the content, select it in full, share it to the code editor, check whether the editor shows the content is complete. 👉🏻[Editor Install](https://mt2.cn/download/)
 
-**Note that after clicking Save, go to Generate Configuration File as soon as possible, otherwise the content you fill in will remain on the webpage, and other people can browse to it when they open the website. Can't think of a solution at the moment**
+## Note that after clicking Save, go to Generate Configuration File as soon as possible, otherwise the content you fill in will remain on the webpage, and other people can browse to it when they open the website. Can't think of a solution at the moment
 
 <div align="left">
   <img src="https://github.com/Toperlock/sing-box-subscribe/assets/86833913/f794806c-edfc-4951-a216-6e38646f3791" alt="how-to-use" width="50%" />
@@ -137,38 +137,39 @@ Android use chrome browser to open the webpage to generate the configuration fil
 |<video controls width="250" src="https://github.com/Toperlock/sing-box-subscribe/assets/86833913/12da95a3-aae9-4ae4-ab88-774ed54f3217"></video>|<video controls width="250" src="https://github.com/Toperlock/sing-box-subscribe/assets/86833913/7e93568d-ece6-4cba-8dd0-bc5b5e64ade7"></video>|
 
 # II. Local installation
-### Install [Python](https://www.python.org/) version 3.10 or above on your PC. Make sure to add Python to your system environment variables (follow Google's installation steps).
+
+## Install [Python](https://www.python.org/) version 3.10 or above on your PC. Make sure to add Python to your system environment variables (follow Google's installation steps)
 
 <div align="left">
   <img src="https://github.com/Toperlock/sing-box-subscribe/assets/86833913/f387322b-a602-40df-b3b6-95561329f2f8" alt="install" width="60%" />
 </div>
 
-### In the terminal, input the following command to install dependencies (on Mac, replace `pip` with `pip3`):
+### In the terminal, input the following command to install dependencies
 
-```
-pip install -r requirements.txt
+```text
+uv sync
 ```
 
 <div align="left">
   <img src="https://github.com/Toperlock/sing-box-subscribe/assets/86833913/0fc03b49-4c57-4ef3-a4fc-044c1a108d75" alt="install" width="60%" />
 </div>
 
-### Download the `sing-box-subscribe` project and open the terminal to navigate to the project directory (you can directly type `cmd` in the file path).
+### Download the `sing-box-subscribe` project and open the terminal to navigate to the project directory (you can directly type `cmd` in the file path)
 
 <div align="left">
   <img src="https://github.com/Toperlock/sing-box-subscribe/assets/86833913/73f05ba8-105c-4f10-8e6c-16e27f26c084" alt="run" width="60%" />
 </div>
 
-### Put your subscription links in `providers.json`, edit `config_template_groups_tun.json` file and use the following command to run the script after editing the template:
+### Put your subscription links in `providers.json`, edit `config_template_groups_tun.json` file and use the following command to run the script after editing the template
 
-```
-python main.py
+```text
+uv run python main.py
 ```
 
-or you can directly select the template with the  `template_index`, `0` means the first template(no flask doesn't support)
+or you can directly select the template with the `template_index`, `0` means the first template(no flask doesn't support)
 
-```
-python main.py --template_index=0
+```text
+uv run python main.py --template_index=0
 ```
 
 For Windows systems, it's recommended to add the commands to a batch program for execution.
@@ -176,30 +177,32 @@ For Windows systems, it's recommended to add the commands to a batch program for
 Before using, make sure to edit the `providers.json` file and the `.json` template files in the `config_template` directory.
 
 A lazy configuration `config_template_groups_rule_set_tun` file is included, which allows filtering nodes based on different categories:
-* Implement `Openai` routing rules
-* Implement `Youtube` routing rules
-* Implement `Google` routing rules
-* Implement `Github` routing rules
-* Implement `Telegram` routing rules
-* Implement `Twitter` routing rules
-* Implement `Facebook` routing rules
-* Implement `Instagram` routing rules
-* Implement `Bilibili` routing rules
-* Implement `Bahamut` routing rules
-* Implement `Spotify` routing rules
-* Implement `TikTok` routing rules
-* Implement `Netflix` routing rules
-* Implement `Disney+` routing rules
-* Implement `Apple` routing rules
-* Implement `Amazon` routing rules
-* Implement `Microsoft` routing rules
-* Implement `Game` routing rules
-* Implement `Hbo` routing rules
-* Implement `Prime Video` routing rules
 
+- Implement `Openai` routing rules
+- Implement `Youtube` routing rules
+- Implement `Google` routing rules
+- Implement `Github` routing rules
+- Implement `Telegram` routing rules
+- Implement `Twitter` routing rules
+- Implement `Facebook` routing rules
+- Implement `Instagram` routing rules
+- Implement `Bilibili` routing rules
+- Implement `Bahamut` routing rules
+- Implement `Spotify` routing rules
+- Implement `TikTok` routing rules
+- Implement `Netflix` routing rules
+- Implement `Disney+` routing rules
+- Implement `Apple` routing rules
+- Implement `Amazon` routing rules
+- Implement `Microsoft` routing rules
+- Implement `Game` routing rules
+- Implement `Hbo` routing rules
+- Implement `Prime Video` routing rules
 
 # providers.json File
+
 In this file, you can add subscription links and basic settings.
+
 ```json
 {
     "subscribes":[
@@ -234,21 +237,28 @@ In this file, you can add subscription links and basic settings.
     "Only-nodes": false //Output the complete sing-box configuration
 }
 ```
+
 - `url`: Required.
 
 > Supports setting up a regular V2 subscription link (**content in base64 encoding**)
-
+>
 > Supports setting up a clash subscription link
-
+>
 > Supports setting up a sing-box subscription link
-
+>
 > Supports setting up a local file paths (**content as standard URI links or Clash field**)
 
-    Local files with `.txt` suffix need to add single node share links one per line in the file, e.g. `ss://` at the beginning (non-subscription links).
+```text
+Local files with `.txt` suffix need to add single node share links one per line in the file, e.g. `ss://` at the beginning (non-subscription links).
+```
 
-    Local files with `.yaml` suffix, with the correct clash proxies fields filled in.
+```text
+Local files with `.yaml` suffix, with the correct clash proxies fields filled in.
+```
 
-    Local files need to be saved on the same drive. Local path formats: `/Desktop/sing-box-subscribe/xx.txt` or relative path formats in the same folder as `main.py`: `./xx.txt`.
+```text
+Local files need to be saved on the same drive. Local path formats: `/Desktop/sing-box-subscribe/xx.txt` or relative path formats in the same folder as `main.py`: `./xx.txt`.
+```
 
 - `tag`: Required. Just keep the default.
 
@@ -277,20 +287,20 @@ In this file, you can add subscription links and basic settings.
 
 <details>
       <summary>prefix effect reference</summary>
-  
+
 ![Snipaste_2023-05-02_12-53-27](https://user-images.githubusercontent.com/21310130/235582317-6bb3d0a6-916f-445f-999b-f17b3db41eea.png)
 
 </details>
 
 - `auto_set_outbounds_dns`: Optional.
 > Includes `proxy` and `direct` settings.
-
+>
 > `proxy` and `direct` should be set to the `tag` of the `dns server` in the config template file.
-
+>
 > With this option set, the script will automatically adapt routing rules to DNS rules.
-
+>
 > DNS servers for outbound rules with `direct` setting in the routing rules will be set to the specified `direct` outbound.
-
+>
 > Outbound rules that need to be proxied in the routing rules will be set to the corresponding `proxy` outbound, and the script will automatically create a corresponding `dns server` for the proxy outbound, using the `dns server` specified in the `proxy` setting.
 
 - `save_config_path`: Required. Set the path for the generated configuration file.
@@ -300,9 +310,9 @@ In this file, you can add subscription links and basic settings.
 
 - `exclude_protocol`: Optional.
 > Set the protocols to exclude, separated by commas, e.g., ssr, vmess.
-
+>
 > Sharing links using protocols in this setting will be ignored.
-
+>
 > The sing-box release program does not support ssr (needs additional parameters to build), so this setting might be useful.
 
 - `config_template`：Optional. Enter a correct webpage json configuration template link to generate sing-box configuration from this template.
@@ -311,6 +321,7 @@ In this file, you can add subscription links and basic settings.
 > When it is set to true or 1, only the node information in sing-box format of the subscription link is output.
 
 # config Template Files
+
 The script will search for JSON template files in the `config_template` directory, and you can select which template file to use when the script runs.
 
 For example, if there are `tun.json` and `socks.json` template files in the directory.
@@ -320,6 +331,7 @@ For example, if there are `tun.json` and `socks.json` template files in the dire
 The script does not validate the correctness of the template files. If the template file is incorrect, errors will occur, and the script won't run.
 
 The template files are similar to sing-box configs, but with some new parameters like `{all}`, `{机场tag}` (translated as `{airport_tag}`), `filter`, which only work with `clash_mode` in `urltest` and `selector` outbounds.
+
 ```json
 {
   "tag":"proxy",
@@ -349,17 +361,20 @@ The template files are similar to sing-box configs, but with some new parameters
   ]
 }
 ```
+
 - `{all}`: Represents all nodes in all subscriptions. The script will add all nodes to the `outbounds` with this identifier.
 
 - `{机场tag}` (translated as `{airport_tag}`): The airport `tag` set in `providers.json` can be used here, representing all nodes in this subscription.
 
 - `filter`: Optional. Node filtering, an array object where you can add any number of rules, formatted as:
+
 ```json
 "filter": [
     {"action": "include", "keywords": ["keyword1|keyword2"]},
     {"action": "exclude", "keywords": ["keyword1|keyword2"], "for": ["airport1_tag", "airport2_tag"]}
   ]
 ```
+
 - **Keyword case-sensitive**
 
 - `include`: Add the keywords to be retained, use '|' to connect multiple keywords. Nodes with names containing these keywords will be retained, and other nodes will be deleted.
@@ -381,8 +396,9 @@ Multiple rules will be executed in order.
 ## Hide the cmd window that pops up when Windows runs sing-box
 
 > Use WinSW to set sing-box.exe as a Windows service, [WinSW tutorial](https://github.com/winsw/winsw)
-
+>
 > XML configuration file modification
+
 ```xml
 <service>
   <id>sing-box</id>
@@ -393,9 +409,10 @@ Multiple rules will be executed in order.
   <arguments>run</arguments>
 </service>
 ```
+
 <details>
       <summary>Windows sing-box folder contents</summary>
- 
+
 <div align="left">
   <img src="https://github.com/Toperlock/sing-box-subscribe/assets/86833913/c6a815bf-b542-43c6-aeb6-84020586a1f1" alt="download" width="50%" />
 </div>
@@ -439,6 +456,7 @@ The specific effects depend on individual outbound and rule settings.
 </details>
 
 # Thanks
+
 - [xream](https://github.com/xream)
 - [sing-box](https://github.com/SagerNet/sing-box)
 - [yacd](https://github.com/haishanh/yacd)

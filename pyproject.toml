@@ -1,0 +1,17 @@
+[project]
+name = "sing-box-subscribe"
+version = "0.1.0"
+description = "Generate sing-box config files from proxy subscription links."
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "Flask>=3,<4",
+    "PyYAML",
+    "chardet",
+    "paramiko",
+    "requests",
+    "ruamel.yaml",
+    "scp",
+]
+
+[tool.uv]
+package = false

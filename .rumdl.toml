@@ -1,0 +1,7 @@
+[global]
+disable = [
+  "MD013", # Existing docs contain long URLs and tables.
+  "MD025", # README-style docs in this repo use multiple H1 sections.
+  "MD033", # Existing docs intentionally embed images, videos, and details.
+  "MD034", # Existing docs include raw example URLs.
+]

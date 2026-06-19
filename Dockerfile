@@ -1,8 +1,13 @@
-FROM python:3.11-slim
-COPY . /sing-box-subscribe
+FROM python:3.13-slim
+
+COPY --from=ghcr.io/astral-sh/uv:0.10.11 /uv /uvx /usr/local/bin/
+
 WORKDIR /sing-box-subscribe
-RUN \
-    pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev
+
+COPY . .
+
 EXPOSE 5000
-CMD ["python", "api/app.py"]
+CMD ["uv", "run", "python", "api/app.py"]
