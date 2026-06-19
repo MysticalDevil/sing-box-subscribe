@@ -297,7 +297,7 @@ def getResponse(url, custom_user_agent=None):
         #'User-Agent': 'clash.meta'
     }
     try:
-        response = requests.get(url,headers=headers,timeout=5000)
+        response = requests.get(url,headers=headers,timeout=12)
         if response.status_code==200:
             return response
         else:
