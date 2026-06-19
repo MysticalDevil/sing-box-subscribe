@@ -1,33 +1,46 @@
-import json, os, tool, time, requests, sys, importlib, argparse, yaml, ruamel.yaml
+import argparse
+import importlib
+import json
+import os
 import re
+import sys
+import time
 from datetime import datetime
-from urllib.parse import urlparse
 from collections import OrderedDict
-from api.app import TEMP_DIR
-from parsers.clash2base64 import clash2v2ray
-from gh_proxy_helper import set_gh_proxy
+from typing import Any
+from collections.abc import Callable
+from urllib.parse import urlparse
 
-parsers_mod = {}
-providers = None
+import requests
+import ruamel.yaml
+import tool
+import yaml
+from gh_proxy_helper import set_gh_proxy
+from parsers.clash2base64 import clash2v2ray
+
+JsonObject = dict[str, Any]
+Node = dict[str, Any]
+parsers_mod: dict[str, Any] = {}
+providers: JsonObject = {}
 color_code = [31, 32, 33, 34, 35, 36, 91, 92, 93, 94, 95, 96]
 
 
-def loop_color(text):
-    text = '\033[1;{color}m{text}\033[0m'.format(color=color_code[0], text=text)
+def loop_color(text: str) -> str:
+    text = f'\033[1;{color_code[0]}m{text}\033[0m'
     color_code.append(color_code.pop(0))
     return text
 
 
-def init_parsers():
+def init_parsers() -> None:
     b = os.walk('parsers')
-    for path, dirs, files in b:
+    for _path, _dirs, files in b:
         for file in files:
             f = os.path.splitext(file)
             if f[1] == '.py':
                 parsers_mod[f[0]] = importlib.import_module('parsers.' + f[0])
 
 
-def get_template():
+def get_template() -> list[str]:
     template_dir = 'config_template'  # 配置模板文件夹路径
     template_files = os.listdir(template_dir)  # 获取文件夹中的所有文件
     template_list = [os.path.splitext(file)[0] for file in template_files if
@@ -36,11 +49,11 @@ def get_template():
     return template_list
 
 
-def load_json(path):
+def load_json(path: str) -> JsonObject:
     return json.loads(tool.readFile(path))
 
 
-def process_subscribes(subscribes):
+def process_subscribes(subscribes: list[JsonObject]) -> dict[str, list[Node]]:
     nodes = {}
     for subscribe in subscribes:
         if 'enabled' in subscribe and not subscribe['enabled']:
@@ -64,7 +77,7 @@ def process_subscribes(subscribes):
     return nodes
 
 
-def nodes_filter(nodes, filter, group):
+def nodes_filter(nodes: list[Node], filter: list[JsonObject], group: str) -> list[Node]:
     for a in filter:
         if a.get('for') and group not in a['for']:
             continue
@@ -72,7 +85,7 @@ def nodes_filter(nodes, filter, group):
     return nodes
 
 
-def action_keywords(nodes, action, keywords):
+def action_keywords(nodes: list[Node], action: str, keywords: list[str]) -> list[Node]:
     # filter将按顺序依次执行
     # "filter":[
     #         {"action":"include","keywords":[""]},
@@ -107,7 +120,7 @@ def action_keywords(nodes, action, keywords):
     return temp_nodes
 
 
-def add_prefix(nodes, subscribe):
+def add_prefix(nodes: list[Node], subscribe: JsonObject) -> None:
     if subscribe.get('prefix'):
         for node in nodes:
             node['tag'] = subscribe['prefix'] + node['tag']
@@ -115,7 +128,7 @@ def add_prefix(nodes, subscribe):
                 node['detour'] = subscribe['prefix'] + node['detour']
 
 
-def add_emoji(nodes, subscribe):
+def add_emoji(nodes: list[Node], subscribe: JsonObject) -> None:
     if subscribe.get('emoji'):
         for node in nodes:
             node['tag'] = tool.rename(node['tag'])
@@ -123,7 +136,7 @@ def add_emoji(nodes, subscribe):
                 node['detour'] = tool.rename(node['detour'])
 
 
-def nodefilter(nodes, subscribe):
+def nodefilter(nodes: list[Node], subscribe: JsonObject) -> None:
     if subscribe.get('ex-node-name'):
         ex_nodename = re.split(r'[,\|]', subscribe['ex-node-name'])
         for exns in ex_nodename:
@@ -132,7 +145,7 @@ def nodefilter(nodes, subscribe):
                     nodes.remove(node)
 
 
-def get_nodes(url):
+def get_nodes(url: str) -> list[Node]:
     if url.startswith('sub://'):
         url = tool.b64Decode(url[6:]).decode('utf-8')
     urlstr = urlparse(url)
@@ -147,12 +160,14 @@ def get_nodes(url):
                 else:
                     processed_list.append(item)
             return processed_list
-        except:
+        except Exception:
             content = get_content_form_file(url)
     else:
         content = get_content_from_url(url)
+    if content is None:
+        return []
     # print (content)
-    if type(content) == dict:
+    if isinstance(content, dict):
         if 'proxies' in content:
             share_links = []
             for proxy in content['proxies']:
@@ -172,6 +187,7 @@ def get_nodes(url):
             filtered_outbounds = [outbound for outbound in content['outbounds'] if outbound.get("type") not in excluded_types]
             outbounds.extend(filtered_outbounds)
             return outbounds
+        return []
     else:
         data = parse_content(content)
         processed_list = []
@@ -183,7 +199,7 @@ def get_nodes(url):
         return processed_list
 
 
-def parse_content(content):
+def parse_content(content: str) -> list[Node]:
     # firstline = tool.firstLine(content)
     # # print(firstline)
     # if not get_parser(firstline):
@@ -198,14 +214,14 @@ def parse_content(content):
             continue
         try:
             node = factory(t)
-        except Exception as e:  #节点解析失败，跳过
-            pass
+        except Exception:  # 节点解析失败，跳过
+            continue
         if node:
             nodelist.append(node)
     return nodelist
 
 
-def get_parser(node):
+def get_parser(node: str) -> Callable[[str], Node | None] | None:
     proto = tool.get_protocol(node)
     if providers.get('exclude_protocol'):
         eps = providers['exclude_protocol'].split(',')
@@ -221,7 +237,7 @@ def get_parser(node):
     return parsers_mod[proto].parse
 
 
-def get_content_from_url(url, n=2):
+def get_content_from_url(url: str, n: int = 2) -> str | JsonObject | None:
     UA = ''
     print('处理: \033[31m' + url + '\033[0m')
     # print('Đang tải link đăng ký: \033[31m' + url + '\033[0m')
@@ -247,12 +263,12 @@ def get_content_from_url(url, n=2):
         print('获取错误，跳过此订阅')
         # print('Lỗi khi tải link đăng ký, bỏ qua link đăng ký này')
         print('----------------------------')
-        pass
+        return None
     try:
         response_content = response.content
         response_text = response_content.decode('utf-8-sig')  # utf-8-sig 可以忽略 BOM
         #response_encoding = response.encoding
-    except:
+    except Exception:
         return ''
     if response_text.isspace():
         print('没有从订阅链接获取到任何内容')
@@ -260,6 +276,8 @@ def get_content_from_url(url, n=2):
         return None
     if not response_text:
         response = tool.getResponse(url, custom_user_agent='clashmeta')
+        if response is None:
+            return None
         response_text = response.text
     if any(response_text.startswith(prefix) for prefix in prefixes):
         response_text = tool.noblankLine(response_text)
@@ -271,28 +289,28 @@ def get_content_from_url(url, n=2):
         try:
             response_text = dict(yaml.load(response_text_no_tabs))
             return response_text
-        except:
+        except Exception:
             pass
     elif 'outbounds' in response_text:
         try:
             response_text = json.loads(response.text)
             return response_text
-        except:
+        except Exception:
             response_text = re.sub(r'//.*', '', response_text)
             response_text = json.loads(response_text)
             return response_text
     else:
         try:
-            response_text = tool.b64Decode(response_text)
-            response_text = response_text.decode(encoding="utf-8")
+            decoded_response_text = tool.b64Decode(response_text)
+            response_text = decoded_response_text.decode(encoding="utf-8")
             # response_text = bytes.decode(response_text,encoding=response_encoding)
-        except:
+        except Exception:
             pass
             # traceback.print_exc()
     return response_text
 
 
-def get_content_form_file(url):
+def get_content_form_file(url: str) -> str:
     print('处理: \033[31m' + url + '\033[0m')
     # print('Đang tải link đăng ký: \033[31m' + url + '\033[0m')
     # encoding = tool.get_encoding(url)
@@ -314,7 +332,7 @@ def get_content_form_file(url):
         return data
 
 
-def save_config(path, nodes):
+def save_config(path: str, nodes: Any) -> None:
     try:
         if 'auto_backup' in providers and providers['auto_backup']:
             now = datetime.now().strftime('%Y%m%d%H%M%S')
@@ -354,7 +372,7 @@ def save_config(path, nodes):
             # print(f"Lỗi khi lưu lại file cấu hình: {str(e)}")
 
 
-def set_proxy_rule_dns(config):
+def set_proxy_rule_dns(config: JsonObject) -> None:
     # dns_template = {
     #     "tag": "remote",
     #     "address": "tls://1.1.1.1",
@@ -400,7 +418,7 @@ def set_proxy_rule_dns(config):
     config['dns']['servers'].extend(outbound_dns)
 
 
-def pro_dns_from_route_rules(route_rule):
+def pro_dns_from_route_rules(route_rule: JsonObject) -> JsonObject | None:
     dns_route_same_list = ["inbound", "ip_version", "network", "protocol", 'domain', 'domain_suffix', 'domain_keyword',
                            'domain_regex', 'geosite', "source_geoip", "source_ip_cidr", "source_port",
                            "source_port_range", "port", "port_range", "process_name", "process_path", "package_name",
@@ -417,14 +435,14 @@ def pro_dns_from_route_rules(route_rule):
     return dns_rule_obj
 
 
-def pro_node_template(data_nodes, config_outbound, group):
+def pro_node_template(data_nodes: list[Node], config_outbound: JsonObject, group: str) -> list[str | None]:
     if config_outbound.get('filter'):
         data_nodes = nodes_filter(data_nodes, config_outbound['filter'], group)
     return [node.get('tag') for node in data_nodes]
 
 
-def combin_to_config(config, data):
-    config_outbounds = config["outbounds"] if config.get("outbounds") else None
+def combin_to_config(config: JsonObject, data: dict[str, list[Node]]) -> JsonObject:
+    config_outbounds = config["outbounds"]
     i = 0
     for group in data:
         if 'subgroup' in group:
@@ -450,7 +468,7 @@ def combin_to_config(config, data):
     temp_outbounds = []
     if config_outbounds:
         # 获取 "type": "direct"的"tag"值
-        direct_item = next((item for item in config_outbounds if item.get('type') == 'direct'), None)
+        direct_item = next((item for item in config_outbounds if item.get('type') == 'direct'), {'tag': 'direct'})
         # 提前处理all模板
         for po in config_outbounds:
             # 处理出站
@@ -529,7 +547,7 @@ def combin_to_config(config, data):
     return config
 
 
-def updateLocalConfig(local_host, path):
+def updateLocalConfig(local_host: str, path: str) -> None:
     header = {
         'Content-Type': 'application/json'
     }
@@ -537,14 +555,14 @@ def updateLocalConfig(local_host, path):
     print(r.text)
 
 
-def display_template(tl):
+def display_template(tl: list[str]) -> None:
     print_str = ''
     for i in range(len(tl)):
-        print_str += loop_color('{index}、{name} '.format(index=i + 1, name=tl[i]))
+        print_str += loop_color(f'{i + 1}、{tl[i]} ')
     print(print_str)
 
 
-def select_config_template(tl, selected_template_index=None):
+def select_config_template(tl: list[str], selected_template_index: int | None = None) -> int:
     if args.template_index is not None:
         uip = args.template_index
     else:
@@ -560,7 +578,7 @@ def select_config_template(tl, selected_template_index=None):
                 return select_config_template(tl)
             else:
                 uip -= 1
-        except:
+        except Exception:
             print('输入了错误信息！重新输入')
             # print('Nhập thông tin không chính xác! Vui lòng nhập lại')
             return select_config_template(tl)
@@ -568,11 +586,11 @@ def select_config_template(tl, selected_template_index=None):
 
 
 # 自定义函数，用于解析参数为 JSON 格式
-def parse_json(value):
+def parse_json(value: str) -> Any:
     try:
         return json.loads(value)
     except json.JSONDecodeError:
-        raise argparse.ArgumentTypeError(f"Invalid JSON: {value}")
+        raise argparse.ArgumentTypeError(f"Invalid JSON: {value}") from None
 
 
 if __name__ == '__main__':
@@ -615,13 +633,13 @@ if __name__ == '__main__':
         print(gh_proxy_index)
         urls = [item["url"] for item in config["route"]["rule_set"]]
         new_urls = set_gh_proxy(urls, gh_proxy_index)
-        for item, new_url in zip(config["route"]["rule_set"], new_urls):
+        for item, new_url in zip(config["route"]["rule_set"], new_urls, strict=False):
             item["url"] = new_url
 
 
     if providers.get('Only-nodes'):
         combined_contents = []
-        for sub_tag, contents in nodes.items():
+        for _sub_tag, contents in nodes.items():
             # 遍历每个机场的内容
             for content in contents:
                 # 将内容添加到新列表中

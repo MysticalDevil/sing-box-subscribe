@@ -1,18 +1,22 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, Response
-from urllib.parse import quote, urlparse, unquote
 import json
 import os
-import sys
-import subprocess
-import tempfile
 import shutil
-import tempfile  # 导入 tempfile 模块
-from datetime import datetime, timedelta
+import subprocess
+import sys
+import tempfile
+from datetime import datetime
+from typing import Any
+from urllib.parse import quote, unquote, urlparse
+
+from flask import Flask, Response, flash, jsonify, redirect, render_template, request, url_for
+from flask.typing import ResponseReturnValue
 
 app = Flask(__name__, template_folder='../templates')  # 指定模板文件夹的路径
 app.secret_key = 'sing-box'  # 替换为实际的密钥
-data_json = {}
+data_json: dict[str, str] = {}
 DEFAULT_CONFIG_TEMPLATE = 'sb-config-1.14'
+config_expiry_time: datetime | None = None
+config_file_path: str | None = None
 os.environ['TEMP_JSON_DATA'] = '{"subscribes":[{"url":"URL","tag":"tag_1","enabled":true,"emoji":1,"subgroup":"","prefix":"","User-Agent":"v2rayng"},{"url":"URL","tag":"tag_2","enabled":false,"emoji":0,"subgroup":"命名/named","prefix":"❤️","User-Agent":"clashmeta"}],"auto_set_outbounds_dns":{"proxy":"","direct":""},"save_config_path":"./config.json","auto_backup":false,"exclude_protocol":"ssr","config_template":"","Only-nodes":false}'
 data_json['TEMP_JSON_DATA'] = '{"subscribes":[{"url":"URL","tag":"tag_1","enabled":true,"emoji":1,"subgroup":"","prefix":"","User-Agent":"v2rayng"},{"url":"URL","tag":"tag_2","enabled":false,"emoji":0,"subgroup":"命名/named","prefix":"❤️","User-Agent":"clashmeta"}],"auto_set_outbounds_dns":{"proxy":"","direct":""},"save_config_path":"./config.json","auto_backup":false,"exclude_protocol":"ssr","config_template":"","Only-nodes":false}'
 
@@ -24,53 +28,53 @@ TEMP_DIR = tempfile.gettempdir()
 config_expiry_time = None
 """
 
-def cleanup_temp_config():
+def cleanup_temp_config() -> None:
     global config_expiry_time, config_file_path
     if config_expiry_time and datetime.now() > config_expiry_time:
-        shutil.rmtree(os.path.dirname(config_file_path), ignore_errors=True)
+        if config_file_path:
+            shutil.rmtree(os.path.dirname(config_file_path), ignore_errors=True)
         config_expiry_time = None
         config_file_path = None
 
 # 获取临时 JSON 数据
-def get_temp_json_data():
+def get_temp_json_data() -> dict[str, Any]:
     temp_json_data = os.environ.get('TEMP_JSON_DATA')
     if temp_json_data:
         return json.loads(temp_json_data)
     return {}
 
 # 获取config_template目录下的模板文件列表
-def get_template_list():
-    template_list = []
+def get_template_list() -> list[str]:
     config_template_dir = 'config_template'  # 配置模板文件夹路径
     template_files = os.listdir(config_template_dir)  # 获取文件夹中的所有文件
     template_list = [os.path.splitext(file)[0] for file in template_files if file.endswith('.json')]  # 移除扩展名并过滤出以.json结尾的文件
     template_list.sort()  # 对文件名进行排序
     return template_list
 
-def get_default_template_index():
+def get_default_template_index() -> str:
     template_list = get_template_list()
     if DEFAULT_CONFIG_TEMPLATE in template_list:
         return str(template_list.index(DEFAULT_CONFIG_TEMPLATE))
     return '0'
 
 # 读取providers.json文件的内容，如果有临时 JSON 数据则使用它
-def read_providers_json():
+def read_providers_json() -> dict[str, Any]:
     temp_json_data = get_temp_json_data()
     if temp_json_data :
         return temp_json_data
-    with open('providers.json', 'r', encoding='utf-8') as json_file:
+    with open('providers.json', encoding='utf-8') as json_file:
         providers_data = json.load(json_file)
     return providers_data
 
 # 写入providers.json文件的内容，如果有临时 JSON 数据则不写入
-def write_providers_json(data):
+def write_providers_json(data: dict[str, Any]) -> None:
     temp_json_data = get_temp_json_data()
     if not temp_json_data:
         with open('providers.json', 'w', encoding='utf-8') as json_file:
             json.dump(data, json_file, indent=4, ensure_ascii=False)
 
 @app.route('/')
-def index():
+def index() -> ResponseReturnValue:
     template_list = get_template_list()
     template_options = [f"{index + 1}、{template}" for index, template in enumerate(template_list)]
     providers_data = read_providers_json()
@@ -78,10 +82,13 @@ def index():
     return render_template('index.html', template_options=template_options, providers_data=json.dumps(providers_data, indent=4, ensure_ascii=False), temp_json_data=json.dumps(temp_json_data, indent=4, ensure_ascii=False))
 
 @app.route('/update_providers', methods=['POST'])
-def update_providers():
+def update_providers() -> ResponseReturnValue:
     try:
         # 获取表单提交的数据
-        new_providers_data = json.loads(request.form.get('providers_data'))
+        providers_data = request.form.get('providers_data')
+        if providers_data is None:
+            raise ValueError('providers_data is required')
+        new_providers_data = json.loads(providers_data)
         # 更新providers.json文件
         write_providers_json(new_providers_data)
         flash('Providers.json文件已更新', 'success')
@@ -92,7 +99,7 @@ def update_providers():
     return redirect(url_for('index'))
 
 @app.route('/edit_temp_json', methods=['GET', 'POST'])
-def edit_temp_json():
+def edit_temp_json() -> ResponseReturnValue:
     if request.method == 'POST':
         try:
             new_temp_json_data = request.form.get('temp_json_data')
@@ -111,11 +118,12 @@ def edit_temp_json():
             flash('TEMP_JSON_DATA không thể trống', 'Lỗi!!!')
             flash('Lỗi định dạng TEMP_JSON_DATA: lưu ý rằng liên kết đăng ký không được có ký tự xuống dòng ở cuối, mà phải nằm trong dấu ngoặc kép ""')
             flash('TEMP_JSON_DATA cannot be empty', 'error')
-            flash(f'Error updating TEMP_JSON_DATA: note that the subscription link should not have a newline at the end, but should be inside double quotes ""')
+            flash('Error updating TEMP_JSON_DATA: note that the subscription link should not have a newline at the end, but should be inside double quotes ""')
             return jsonify({'status': 'error', 'message': str(e)})  # 返回错误状态和消息
+    return redirect(url_for('index'))
 
 @app.route('/config/<path:url>', methods=['GET'])
-def config(url):
+def config(url: str) -> ResponseReturnValue:
     user_agent = request.headers.get('User-Agent') or ""
     rua_values = os.getenv('RUA')
     if rua_values and any(rua_value in user_agent for rua_value in rua_values.split(',')):
@@ -132,6 +140,7 @@ def config(url):
     subscribe2 = temp_json_data['subscribes'][1]
     subscribe3 = temp_json_data['subscribes'][2]
     query_string = request.query_string.decode('utf-8')
+    args_params = request.args.to_dict(flat=True)
     #print (f"query_string: {query_string}")
     #print (f"url: {url}")
     #encoded_url = quote(url, safe=':/')  # 对 url 进行编码
@@ -145,38 +154,38 @@ def config(url):
                 param = urlparse(encoded_url.rsplit('&', 1)[-1])
             else:
                 param = urlparse(encoded_url.split('&', 1)[-1])
-            request.args = dict(item.split('=') for item in param.path.split('&'))
-            if request.args.get('prefix'):
-                request.args['prefix'] = unquote(request.args['prefix'])
-            if request.args.get('eps'):
-                request.args['eps'] = unquote(request.args['eps'])
-            if request.args.get('enn'):
-                request.args['enn'] = unquote(request.args['enn'])
-            if request.args.get('file'):
-                index = request.args.get('file').find(":")
+            args_params = dict(item.split('=', 1) for item in param.path.split('&'))
+            if args_params.get('prefix'):
+                args_params['prefix'] = unquote(args_params['prefix'])
+            if args_params.get('eps'):
+                args_params['eps'] = unquote(args_params['eps'])
+            if args_params.get('enn'):
+                args_params['enn'] = unquote(args_params['enn'])
+            if args_params.get('file'):
+                index = args_params['file'].find(":")
                 next_index = index + 2
                 if index != -1:
-                    if next_index < len(request.args['file']) and request.args['file'][next_index] != "/":
-                        request.args['file'] = request.args['file'][:next_index-1] + "/" + request.args['file'][next_index-1:]
+                    if next_index < len(args_params['file']) and args_params['file'][next_index] != "/":
+                        args_params['file'] = args_params['file'][:next_index-1] + "/" + args_params['file'][next_index-1:]
     else:
         if any(substring in query_string for substring in ['&emoji=', '&file=', '&eps=', '&enn=']):
             param = urlparse(query_string.split('&', 1)[-1])
-            request.args = dict(item.split('=') for item in param.path.split('&'))
-            if request.args.get('prefix'):
-                request.args['prefix'] = unquote(request.args['prefix'])
-            if request.args.get('eps'):
-                request.args['eps'] = unquote(request.args['eps'])
-            if request.args.get('enn'):
-                request.args['enn'] = unquote(request.args['enn'])
-            if request.args.get('file'):
-                index = request.args.get('file').find(":")
+            args_params = dict(item.split('=', 1) for item in param.path.split('&'))
+            if args_params.get('prefix'):
+                args_params['prefix'] = unquote(args_params['prefix'])
+            if args_params.get('eps'):
+                args_params['eps'] = unquote(args_params['eps'])
+            if args_params.get('enn'):
+                args_params['enn'] = unquote(args_params['enn'])
+            if args_params.get('file'):
+                index = args_params['file'].find(":")
                 next_index = index + 2
                 if index != -1:
-                    if next_index < len(request.args['file']) and request.args['file'][next_index] != "/":
-                        request.args['file'] = request.args['file'][:next_index-1] + "/" + request.args['file'][next_index-1:]
+                    if next_index < len(args_params['file']) and args_params['file'][next_index] != "/":
+                        args_params['file'] = args_params['file'][:next_index-1] + "/" + args_params['file'][next_index-1:]
             elif 'file=' in query_string:
                 index = query_string.find("file=")
-                request.args['file'] = query_string.split('file=')[-1].split('&', 1)[0]
+                args_params['file'] = query_string.split('file=')[-1].split('&', 1)[0]
     #print (f"request.args: {request.args}")
 
     if index_of_colon != -1:
@@ -194,15 +203,15 @@ def config(url):
 
     #print (f"full_url: {full_url}")
 
-    emoji_param = request.args.get('emoji', '')
-    file_param = request.args.get('file', '')
-    tag_param = request.args.get('tag', '')
-    ua_param = request.args.get('ua', '')
-    UA_param = request.args.get('UA', '')
-    pre_param = request.args.get('prefix', '')
-    eps_param = request.args.get('eps', '')
-    enn_param = request.args.get('enn', '')
-    gh_proxy_param = request.args.get('gh', '')
+    emoji_param = args_params.get('emoji', '')
+    file_param = args_params.get('file', '')
+    tag_param = args_params.get('tag', '')
+    ua_param = args_params.get('ua', '')
+    UA_param = args_params.get('UA', '')
+    pre_param = args_params.get('prefix', '')
+    eps_param = args_params.get('eps', '')
+    enn_param = args_params.get('enn', '')
+    gh_proxy_param = args_params.get('gh', '')
 
     # 构建要删除的字符串列表
     params_to_remove = [
@@ -222,7 +231,7 @@ def config(url):
     for param in params_to_remove:
         if param in full_url:
             full_url = full_url.replace(param, '')
-    if request.args.get('url'):
+    if args_params.get('url'):
         full_url = full_url
     else:
         full_url = unquote(full_url)
@@ -276,23 +285,23 @@ def config(url):
             config_file_path = CONFIG_FILE_NAME  # 使用相对于当前工作目录的路径 
         os.environ['TEMP_JSON_DATA'] = json.dumps(json.loads(data_json['TEMP_JSON_DATA']), indent=4, ensure_ascii=False)
         # 读取配置文件内容
-        with open(config_file_path, 'r', encoding='utf-8') as config_file:
+        with open(config_file_path, encoding='utf-8') as config_file:
             config_content = config_file.read()
             if config_content:
                 flash('配置文件生成成功', 'success')
                 flash('Tạo file cấu hình thành công', 'Thành công^^')
-        config_data = json.loads(config_content)
+        json.loads(config_content)
         return Response(config_content, content_type='text/plain; charset=utf-8')
-    except subprocess.CalledProcessError as e:
+    except subprocess.CalledProcessError:
         os.environ['TEMP_JSON_DATA'] = json.dumps(json.loads(data_json['TEMP_JSON_DATA']), indent=4, ensure_ascii=False)
         return Response(json.dumps({'status': 'error'}, indent=4,ensure_ascii=False), content_type='application/json; charset=utf-8', status=500)
         #return jsonify({'status': 'error', 'message': str(e)}) 
-    except Exception as e:
+    except Exception:
         #flash(f'Error occurred while generating the configuration file: {str(e)}', 'error')
         return Response(json.dumps({'status': 'error', 'message_CN': '认真看刚刚的网页说明、github写的reademe文件;', 'message_VN': 'Quá thời gian phân tích đăng ký: Vui lòng kiểm tra xem liên kết đăng ký có chính xác không hoặc vui lòng chuyển sang "nogroupstemplate" và thử lại; Vui lòng không chỉnh sửa giá trị "tag", trừ khi bạn hiểu nó làm gì;', 'message_EN': 'Subscription parsing timeout: Please check if the subscription link is correct or please change to "no_groups_template" and try again; Please do not modify the "tag" value unless you understand what it does;'}, indent=4,ensure_ascii=False), content_type='application/json; charset=utf-8', status=500)
 
 @app.route('/generate_config', methods=['POST'])
-def generate_config():
+def generate_config() -> ResponseReturnValue:
     try:
         selected_template_index = request.form.get('template_index')
         if not selected_template_index:
@@ -311,23 +320,23 @@ def generate_config():
             config_file_path = CONFIG_FILE_NAME  # 使用相对于当前工作目录的路径 
         os.environ['TEMP_JSON_DATA'] = json.dumps(json.loads(data_json['TEMP_JSON_DATA']), indent=4, ensure_ascii=False)
         # 读取配置文件内容
-        with open(config_file_path, 'r', encoding='utf-8') as config_file:
+        with open(config_file_path, encoding='utf-8') as config_file:
             config_content = config_file.read()
             if config_content:
                 flash('配置文件生成成功', 'success')
                 flash('Tạo file cấu hình thành công', 'Thành công^^')
-        config_data = json.loads(config_content)
+        json.loads(config_content)
         return Response(config_content, content_type='text/plain; charset=utf-8')
-    except subprocess.CalledProcessError as e:
+    except subprocess.CalledProcessError:
         os.environ['TEMP_JSON_DATA'] = json.dumps(json.loads(data_json['TEMP_JSON_DATA']), indent=4, ensure_ascii=False)
         return Response(json.dumps({'status': 'error'}, indent=4,ensure_ascii=False), content_type='application/json; charset=utf-8', status=500)
-    except Exception as e:
+    except Exception:
         #flash(f'Error occurred while generating the configuration file: {str(e)}', 'error')
         return Response(json.dumps({'status': 'error', 'message_CN': '认真看刚刚的网页说明、github写的reademe文件;', 'message_VN': 'Quá thời gian phân tích đăng ký: Vui lòng kiểm tra xem liên kết đăng ký có chính xác không hoặc vui lòng chuyển sang "nogroupstemplate" và thử lại; Vui lòng không chỉnh sửa giá trị "tag", trừ khi bạn hiểu nó làm gì;', 'message_EN': 'Subscription parsing timeout: Please check if the subscription link is correct or please change to "no_groups_template" and try again; Please do not modify the "tag" value unless you understand what it does;'}, indent=4,ensure_ascii=False), content_type='application/json; charset=utf-8', status=500)
     #return redirect(url_for('index'))
 
 @app.route('/clear_temp_json_data', methods=['POST'])
-def clear_temp_json_data():
+def clear_temp_json_data() -> ResponseReturnValue:
     try:
         os.environ['TEMP_JSON_DATA'] = json.dumps({}, indent=4, ensure_ascii=False)
         flash('TEMP_JSON_DATA 已清空', 'success')

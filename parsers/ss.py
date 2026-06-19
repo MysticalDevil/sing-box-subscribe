@@ -1,10 +1,14 @@
-import tool,json,re,urllib
+import tool,json,re
+import urllib.parse
 from urllib.parse import parse_qs
-def parse(data):
+
+from parsers._typing import Node, ParseResult
+
+def parse(data: str) -> ParseResult:
     param = data[5:]
     if not param or param.isspace():
         return None
-    node = {
+    node: Node = {
         'tag':tool.genName()+'_shadowsocks',
         'type':'shadowsocks',
         'server':None,
@@ -46,14 +50,14 @@ def parse(data):
         if param.find('&', param.find('v2ray-plugin')) > -1:
             try:
                 plugin = tool.b64Decode(param[param.find('v2ray-plugin')+13:param.find('&', param.find('v2ray-plugin'))]).decode('utf-8')
-            except:
+            except Exception:
                 plugin = urllib.parse.unquote(param[param.find('v2ray-plugin')+15:param.find('&', param.find('v2ray-plugin'))])
                 pairs = [pair.split('=') for pair in plugin.split(';') if '=' in pair and pair.count('=') == 1]
                 plugin = str({key: value for key, value in pairs})
         else:
             try:
                 plugin = tool.b64Decode(param[param.find('v2ray-plugin')+13:]).decode('utf-8')
-            except:
+            except Exception:
                 plugin = urllib.parse.unquote(param[param.find('v2ray-plugin')+15:])
                 pairs = [pair.split('=') for pair in plugin.split(';') if '=' in pair and pair.count('=') == 1]
                 plugin = str({key: value for key, value in pairs})
@@ -76,21 +80,22 @@ def parse(data):
         smux = data[5:][data[5:].find('protocol'):]
         smux_dict = parse_qs(smux.split('#')[0])
         smux_dict = {k: v[0] for k, v in smux_dict.items() if v[0]}
-        node['multiplex'] = {
+        multiplex: Node = {
             'enabled': True,
             'protocol': smux_dict['protocol']
         }
+        node['multiplex'] = multiplex
         if smux_dict.get('max-streams'):
-            node['multiplex']['max_streams'] = int(smux_dict['max-streams'])
+            multiplex['max_streams'] = int(smux_dict['max-streams'])
         else:
-            node['multiplex']['max_connections'] = int(smux_dict['max-connections'])
-            node['multiplex']['min_streams'] = int(smux_dict['min-streams'])
+            multiplex['max_connections'] = int(smux_dict['max-connections'])
+            multiplex['min_streams'] = int(smux_dict['min-streams'])
         if smux_dict.get('padding') == 'True':
-            node['multiplex']['padding'] = True
+            multiplex['padding'] = True
     try: #fuck
         param = param.split('?')[0]
         matcher = tool.b64Decode(param) #保留'/'测试能不能解码
-    except:
+    except Exception:
         param = param.split('/')[0].split('?')[0] #不能解码说明'/'不是base64内容
     if param.find('@') > -1:
         matcher = re.match(r'(.*?)@(.*):(.*)', param)
@@ -107,7 +112,7 @@ def parse(data):
               node['password'] = matcher.group(2)
           else:
               return None
-        except:
+        except Exception:
           matcher = re.match(r'(.*?):(.*)', param)
           if matcher:
               node['method'] = matcher.group(1)
@@ -123,7 +128,10 @@ def parse(data):
             node['server_port'] = matcher.group(4).split('&')[0]
         else:
             return None
-    node['server_port'] = int(re.search(r'\d+', node['server_port']).group())
+    port_match = re.search(r'\d+', str(node['server_port']))
+    if port_match is None:
+        return None
+    node['server_port'] = int(port_match.group(0))
     param2 = data[5:]
     if param2.find('shadow-tls') > -1:
         flag = 1
@@ -133,7 +141,7 @@ def parse(data):
             plugin = tool.b64Decode(param2[param2.find('shadow-tls')+11:].split('#')[0]).decode('utf-8')
         plugin = eval(plugin.replace('true','True'))
         node['detour'] = node['tag']+'_shadowtls'
-        node_tls = {
+        node_tls: Node = {
             'tag':node['detour'],
             'type':'shadowtls',
             'server':node['server'],

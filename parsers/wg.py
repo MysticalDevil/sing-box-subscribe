@@ -1,19 +1,19 @@
 import tool,re
-from urllib.parse import urlparse, parse_qs, unquote
-def parse(data):
+from urllib.parse import urlparse, unquote
+
+from parsers._typing import Node, ParseResult, flatten_query
+
+def parse(data: str) -> ParseResult:
     info = data[:]
     server_info = urlparse(info)
-    netquery = dict(
-        (k, v.replace(' ', '+') if len(v) > 1 else v[0].replace(' ', '+'))
-        for k, v in parse_qs(server_info.query).items()
-    )
-    node = {
+    netquery = {key: value.replace(' ', '+') for key, value in flatten_query(server_info.query).items()}
+    node: Node = {
         'tag': unquote(server_info.fragment) or tool.genName()+'_wireguard',
         'type': 'wireguard',
         'private_key': netquery.get('privateKey') or unquote(server_info.netloc.rsplit("@", 1)[0]),
         'peers': []
     }
-    peer_info = {
+    peer_info: Node = {
         'address': re.sub(r"\[|\]", "", server_info.netloc.rsplit("@", 1)[-1].rsplit(":", 1)[0]),
         'port': int(server_info.netloc.rsplit("@", 1)[-1].rsplit(":", 1)[1]),
         'public_key': netquery.get('publicKey') or netquery.get('publickey'),
@@ -26,9 +26,11 @@ def parse(data):
     if netquery.get('mtu'):
         node['mtu'] = int(netquery['mtu'])
     if netquery.get('reserved'):
-        reserved_value = netquery.get('reserved')
+        reserved_value = netquery['reserved']
         node['peers'][0]['reserved'] = [int(val) for val in reserved_value.split(",")] if ',' in reserved_value else reserved_value
     ip_value = netquery.get('ip') or netquery.get('address')
+    if ip_value is None:
+        return None
     if ',' in ip_value:
         ipv4_value, ipv6_value = ip_value.split(",", 1)
         ipv4_value = ipv4_value + "/32" if '/' not in ipv4_value else ipv4_value

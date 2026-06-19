@@ -1,11 +1,14 @@
 import tool,re
 from urllib.parse import urlparse,unquote
-def parse(data):
+
+from parsers._typing import Node, ParseResult
+
+def parse(data: str) -> ParseResult:
     info = data[:]
     server_info = urlparse(info)
     if server_info.path:
         server_info = server_info._replace(netloc=server_info.netloc + server_info.path, path="")
-    node = {
+    node: Node = {
         'tag': unquote(server_info.fragment)  or tool.genName()+'_socks',
         'type': 'socks',
         "version": "5",
@@ -13,7 +16,7 @@ def parse(data):
     }
     try:
         netloc = (tool.b64Decode(server_info.netloc)).decode()
-    except:
+    except Exception:
         netloc = server_info.netloc
     if '@' in netloc:
         _netloc = netloc.split("@")

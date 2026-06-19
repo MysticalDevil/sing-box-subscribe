@@ -1,0 +1,11 @@
+[environment]
+python-version = "3.13"
+
+[src]
+include = [
+    "api",
+    "main.py",
+    "tool.py",
+    "gh_proxy_helper.py",
+    "parsers",
+]

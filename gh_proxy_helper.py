@@ -1,7 +1,16 @@
 import re
+from typing import overload
 
-def set_gh_proxy(config, selected_index=0):
 
+@overload
+def set_gh_proxy(config: str, selected_index: int = 0) -> str: ...
+
+
+@overload
+def set_gh_proxy(config: list[str], selected_index: int = 0) -> list[str]: ...
+
+
+def set_gh_proxy(config: str | list[str], selected_index: int = 0) -> str | list[str]:
 
     # 加速服务列表（名称, 前缀）
     proxy_methods = [
@@ -18,7 +27,7 @@ def set_gh_proxy(config, selected_index=0):
     selected_name, selected_prefix = proxy_methods[selected_index]
     all_prefixes = [prefix for _, prefix in proxy_methods]
 
-    def restore_raw_url(line):
+    def restore_raw_url(line: str) -> str:
         # 识别 jsDelivr 或 CF 镜像，转回 raw.githubusercontent.com
         jsdelivr_pattern = r'https://(?:cdn\.jsdelivr\.net|testingcf\.jsdelivr\.net)/gh/([^/]+)/([^@]+)@([^/]+)/(.*)'
         match = re.match(jsdelivr_pattern, line)
@@ -35,14 +44,14 @@ def set_gh_proxy(config, selected_index=0):
                 return line.replace(prefix, selected_prefix, 1)
         return line
 
-    def convert_to_jsdelivr(raw_url, domain="cdn.jsdelivr.net"):
+    def convert_to_jsdelivr(raw_url: str, domain: str = "cdn.jsdelivr.net") -> str:
         match = re.match(r'https://raw\.githubusercontent\.com/([^/]+)/([^/]+)/([^/]+)/(.*)', raw_url)
         if match:
             user, repo, branch, path = match.groups()
             return f"https://{domain}/gh/{user}/{repo}@{branch}/{path}"
         return raw_url
 
-    def apply_proxy(line):
+    def apply_proxy(line: str) -> str:
         original = restore_raw_url(line)
 
         if selected_prefix in ("jsdelivr", "testingcf.jsdelivr.net"):

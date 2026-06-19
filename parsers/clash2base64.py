@@ -1,7 +1,8 @@
 import base64,json,re
+from typing import Any
 from urllib.parse import quote, unquote
 
-def clash2v2ray(share_link):
+def clash2v2ray(share_link: dict[str, Any]) -> str:
     link = ''
     if share_link['type'] == 'vmess':
         try:
@@ -19,9 +20,9 @@ def clash2v2ray(share_link):
                 "path": share_link.get('ws-path', '') or share_link.get('ws-opts', {}).get('path', ''),
                 "tls": ''
             }
-            if share_link.get('skip-cert-verify') == False:
+            if share_link.get('skip-cert-verify') is False:
                 vmess_info['verify_cert'] = False
-            if share_link.get('tls') and share_link['tls'] != False:
+            if share_link.get('tls') and share_link['tls'] is not False:
                 vmess_info['tls'] = 'tls'
                 vmess_info["sni"] = share_link.get('servername', '')
             if vmess_info['net'] == 'grpc':
@@ -37,7 +38,7 @@ def clash2v2ray(share_link):
                 vmess_info["headers"] = share_link.get('http-opts', {}).get('headers', {})
                 vmess_info["host"] = share_link.get('http-opts', {}).get('headers', {}).get('Host', [])
                 vmess_info["path"] = share_link.get('http-opts', {}).get('path', [])
-            if share_link.get('smux',{}).get('enabled', '') == True:
+            if share_link.get('smux',{}).get('enabled', '') is True:
                 vmess_info["protocol"] = share_link['smux']['protocol']
                 vmess_info["max_connections"] = share_link['smux'].get('max-connections','')
                 vmess_info["min_streams"] = share_link['smux'].get('min-streams','')
@@ -48,7 +49,7 @@ def clash2v2ray(share_link):
             vmess_base64 = base64.b64encode(vmess_json).decode('utf-8')
             link = f"vmess://{vmess_base64}"
             return link
-        except:
+        except Exception:
             pass
         # TODO
     elif share_link['type'] == 'ss':
@@ -75,11 +76,11 @@ def clash2v2ray(share_link):
                     ss_info["headers"] = share_link['plugin-opts']['headers']
                 if share_link['plugin-opts'].get('fingerprint'):
                     ss_info["fingerprint"] = share_link['plugin-opts']['fingerprint']
-                if share_link['plugin-opts'].get('mux') == True:
+                if share_link['plugin-opts'].get('mux') is True:
                     ss_info["mux"] = True
-                if share_link['plugin-opts'].get('skip-cert-verify') == True:
+                if share_link['plugin-opts'].get('skip-cert-verify') is True:
                     ss_info["skip-cert-verify"] = True
-                if share_link['plugin-opts'].get('tls') == True:
+                if share_link['plugin-opts'].get('tls') is True:
                     ss_info["tls"] = True
                 v2ray_plugin = {
                     "mode": ss_info.get("obfs", ""),
@@ -103,14 +104,14 @@ def clash2v2ray(share_link):
             link = "ss://{base_link}@{server}:{port}{url_link}".format(base_link=base_link, url_link=url_link, **ss_info)
         else:
             link = "ss://{base_link}@{server}:{port}".format(base_link=base_link, **ss_info)
-        if share_link.get('smux',{}).get('enabled', '') == True:
+        if share_link.get('smux',{}).get('enabled', '') is True:
             ss_info["protocol"] = share_link['smux']['protocol']
             ss_info["max_connections"] = share_link['smux'].get('max-connections','')
             ss_info["min_streams"] = share_link['smux'].get('min-streams','')
             ss_info["max_streams"] = share_link['smux'].get('max-streams','')
             ss_info["padding"] = share_link['smux'].get('padding','')
             link += "&protocol={protocol}&max-connections={max_connections}&min-streams={min_streams}&max-streams={max_streams}&padding={padding}#{name}".format(**ss_info)
-        elif share_link.get("udp-over-tcp") == True:
+        elif share_link.get("udp-over-tcp") is True:
             link += "&uot=1#{name}".format(**ss_info)
         else:
             link += f"#{ss_info['name']}"
@@ -124,7 +125,7 @@ def clash2v2ray(share_link):
             "cipher": share_link['cipher'],
             "obfs": share_link['obfs'],
             "password": base64.b64encode(share_link.get('password', '').encode('utf-8')).decode('utf-8'),
-            "obfsparam": base64.b64encode(share_link.get('obfs-param').encode('utf-8')).decode('utf-8') if share_link.get('obfs-param') != None else '',
+            "obfsparam": base64.b64encode(str(share_link.get('obfs-param')).encode('utf-8')).decode('utf-8') if share_link.get('obfs-param') is not None else '',
             "protoparam": base64.b64encode(share_link.get('protocol-param', '').encode('utf-8')).decode('utf-8'),
             "remarks": base64.b64encode(share_link.get('name', '').encode('utf-8')).decode('utf-8'),
             "group": base64.b64encode(share_link.get('group', '').encode('utf-8')).decode('utf-8')
@@ -139,7 +140,7 @@ def clash2v2ray(share_link):
             "server": share_link['server'],
             "port": share_link['port'],
             "sni": share_link.get('sni', ''),
-            "allowInsecure": '1' if share_link.get('skip-cert-verify') == True else '0',
+            "allowInsecure": '1' if share_link.get('skip-cert-verify') is True else '0',
             "type": share_link.get('network', 'tcp'),
             "fp": share_link.get('client-fingerprint', ''),
             "alpn": quote(','.join(share_link.get('alpn', '')), 'utf-8'),
@@ -147,7 +148,7 @@ def clash2v2ray(share_link):
         }
         if trojan_info['type'] == 'grpc':
             if share_link.get('grpc-opts', {}).get('grpc-service-name', '') not in ['none', '', '/']:
-                trojan_info["serviceName"] = unquote(share_link.get('grpc-opts').get('grpc-service-name'))
+                trojan_info["serviceName"] = unquote(share_link.get('grpc-opts', {}).get('grpc-service-name', ''))
             else:
                 server_parts = share_link['server'].split('.')
                 if len(server_parts) >= 2 and not server_parts[-2].isdigit():
@@ -165,7 +166,7 @@ def clash2v2ray(share_link):
             link = "trojan://{password}@{server}:{port}?sni={sni}&allowInsecure={allowInsecure}&type={type}&host={host}&path={path}&fp={fp}&alpn={alpn}".format(**trojan_info)
         elif trojan_info['type'] == 'tcp':
             link = "trojan://{password}@{server}:{port}?sni={sni}&allowInsecure={allowInsecure}&type={type}&fp={fp}&alpn={alpn}".format(**trojan_info)
-        if share_link.get('smux',{}).get('enabled', '') == True:
+        if share_link.get('smux',{}).get('enabled', '') is True:
             trojan_info["protocol"] = share_link['smux']['protocol']
             trojan_info["max_connections"] = share_link['smux'].get('max-connections','')
             trojan_info["min_streams"] = share_link['smux'].get('min-streams','')
@@ -185,10 +186,10 @@ def clash2v2ray(share_link):
             "fp": share_link.get('client-fingerprint', ''),
             "type": share_link.get('network', 'tcp'),
             "flow": share_link.get('flow', ''),
-            'allowInsecure': '1' if share_link.get('skip-cert-verify') == True else '0',
+            'allowInsecure': '1' if share_link.get('skip-cert-verify') is True else '0',
             "name": quote(share_link['name'], 'utf-8')
         }
-        if share_link.get('tls') == False:
+        if share_link.get('tls') is False:
             vless_info["security"] = 'none'
         else:
             vless_info["security"] = 'tls'
@@ -198,7 +199,7 @@ def clash2v2ray(share_link):
             link = "vless://{uuid}@{server}:{port}?encryption=none&security={security}&sni={sni}&fp={fp}&type={type}&host={host}&path={path}&flow={flow}&allowInsecure={allowInsecure}".format(**vless_info)
         elif vless_info['type'] == 'grpc':
             if share_link.get('grpc-opts', {}).get('grpc-service-name', '') not in ['/', ''] :
-                vless_info["serviceName"] = unquote(share_link.get('grpc-opts').get('grpc-service-name'))
+                vless_info["serviceName"] = unquote(share_link.get('grpc-opts', {}).get('grpc-service-name', ''))
             else:
                 vless_info["serviceName"] = ''
             if share_link.get('reality-opts'):
@@ -216,7 +217,7 @@ def clash2v2ray(share_link):
                 link = "vless://{uuid}@{server}:{port}?encryption=none&security={security}&sni={sni}&serverName={sni}&type={type}&fp={fp}&flow={flow}&allowInsecure={allowInsecure}&pbk={pbk}&sid={sid}".format(**vless_info)
             else:
                 link = "vless://{uuid}@{server}:{port}?encryption=none&security={security}&sni={sni}&serverName={sni}&type={type}&fp={fp}&flow={flow}&allowInsecure={allowInsecure}".format(**vless_info)
-        if share_link.get('smux',{}).get('enabled', '') == True:
+        if share_link.get('smux',{}).get('enabled', '') is True:
             vless_info["protocol"] = share_link['smux']['protocol']
             vless_info["max_connections"] = share_link['smux'].get('max-connections','')
             vless_info["min_streams"] = share_link['smux'].get('min-streams','')
@@ -235,7 +236,7 @@ def clash2v2ray(share_link):
         port = share_link['port'],
         alpn = quote(','.join(share_link.get('alpn', '')), 'utf-8'),
         allowInsecure = share_link.get('allowInsecure', '1'),
-        disable_sni = '0' if share_link.get('disable-sni', '') == False else '1',
+        disable_sni = '0' if share_link.get('disable-sni', '') is False else '1',
         sni = share_link.get('sni', ''),
         udp_relay_mode = share_link.get('udp-relay-mode', 'native'),
         control = share_link.get('congestion-controller', 'bbr'),
@@ -244,16 +245,18 @@ def clash2v2ray(share_link):
         return link
         # TODO
     elif share_link['type'] == 'hysteria':
+        up_match = re.search(r'\d+', str(share_link.get('up', '')))
+        down_match = re.search(r'\d+', str(share_link.get('down', '')))
         link = "hysteria://{server}:{port}?protocol={protocol}&auth={auth}&alpn={alpn}&insecure={allowInsecure}&peer={sni}&upmbps={upmbps}&downmbps={downmbps}&obfs={obfs}#{name}".format(
         server = share_link['server'],
         port = share_link['port'],
         protocol = share_link.get('protocol', 'udp'),
         auth = share_link.get('auth_str', share_link.get('auth-str')),
         alpn = quote(','.join(share_link.get('alpn', '')), 'utf-8'),
-        allowInsecure = '0' if share_link.get('skip-cert-verify', '') == False else '1',
+        allowInsecure = '0' if share_link.get('skip-cert-verify', '') is False else '1',
         sni = share_link.get('sni', ''),
-        upmbps = int(re.search(r'\d+', str(share_link.get('up', '')))[0]),
-        downmbps = int(re.search(r'\d+', str(share_link.get('down', '')))[0]),
+        upmbps = int(up_match.group(0)) if up_match else 0,
+        downmbps = int(down_match.group(0)) if down_match else 0,
         obfs = share_link.get('obfs', ''),
         name = share_link['name'].encode('utf-8', 'surrogatepass').decode('utf-8')
         )
@@ -265,7 +268,7 @@ def clash2v2ray(share_link):
         server = share_link['server'],
         port = share_link['port'],
         ports=",{}".format(share_link['ports']) if share_link.get('ports') else '',
-        allowInsecure = '0' if share_link.get('skip-cert-verify', '') == False else '1',
+        allowInsecure = '0' if share_link.get('skip-cert-verify', '') is False else '1',
         obfs = share_link.get('obfs', 'none'),
         obfspassword = share_link.get('obfs-password', ''),
         fingerprint = share_link.get('fingerprint', ''),
@@ -288,11 +291,11 @@ def clash2v2ray(share_link):
             "name": quote(share_link['name'], 'utf-8')
         }
         #warp_info['reserved'] = '0,0,0'
-        if type(share_link.get('reserved')) == str:
+        if isinstance(share_link.get('reserved'), str):
             warp_info['reserved'] = share_link.get('reserved', '')
         else:
-            if type(share_link.get('reserved')) != type(None):
-                warp_info['reserved'] = ','.join(str(item) for item in share_link.get('reserved'))
+            if share_link.get('reserved') is not None:
+                warp_info['reserved'] = ','.join(str(item) for item in share_link.get('reserved', []))
         if share_link.get('ipv6'):
             warp_info['ipv6'] = share_link['ipv6']
             if warp_info.get('reserved'):
@@ -352,7 +355,7 @@ def clash2v2ray(share_link):
         minIdleSession = share_link.get('min-idle-session', ''),
         alpn = quote(','.join(share_link.get('alpn', '')), 'utf-8'),
         fp = share_link.get('client-fingerprint', ''),
-        allowInsecure = '1' if share_link.get('skip-cert-verify', '') == True else '0',
+        allowInsecure = '1' if share_link.get('skip-cert-verify', '') is True else '0',
         sni = share_link.get('sni', ''),
         name = share_link['name'].encode('utf-8', 'surrogatepass').decode('utf-8')
         )

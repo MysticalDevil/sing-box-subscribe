@@ -1,31 +1,35 @@
 import tool,re
-from urllib.parse import urlparse, parse_qs, unquote
+from urllib.parse import urlparse, unquote
 
-def parse(data):
+from parsers._typing import Node, ParseResult, flatten_query
+
+def parse(data: str) -> ParseResult:
     info = data[:]
     server_info = urlparse(info)
-    netquery = dict(
-        (k, v if len(v) > 1 else v[0])
-        for k, v in parse_qs(server_info.query).items()
-    )
-    node = {
+    netquery = flatten_query(server_info.query)
+    up_match = re.search(r'\d+', netquery.get('upmbps', '10'))
+    down_match = re.search(r'\d+', netquery.get('downmbps', '100'))
+    if up_match is None or down_match is None:
+        return None
+    tls: Node = {
+        'enabled': True,
+        'server_name': netquery.get('sni', netquery.get('peer', '')),
+        'insecure': False
+    }
+    node: Node = {
         'tag': unquote(server_info.fragment) or tool.genName()+'_hysteria',
         'type': 'hysteria',
         'server': re.sub(r"\[|\]", "", server_info.netloc.rsplit(":", 1)[0]),
         'server_port': int((server_info.netloc.rsplit(":", 1)[1]).split(",", 1)[0]), #fuck all
-        'up_mbps': int(re.search(r'\d+', netquery.get('upmbps', '10')).group()),
-        'down_mbps': int(re.search(r'\d+', netquery.get('downmbps', '100')).group()),
+        'up_mbps': int(up_match.group(0)),
+        'down_mbps': int(down_match.group(0)),
         'auth_str': netquery.get('auth', ''),
-        'tls': {
-            'enabled': True,
-            'server_name': netquery.get('sni', netquery.get('peer', '')),
-            'insecure': False
-        }
+        'tls': tls
     }
     if netquery.get('alpn'):
-        node['tls']['alpn'] = netquery['alpn'].strip('{}').split(',')
+        tls['alpn'] = netquery['alpn'].strip('{}').split(',')
     if netquery.get('insecure') == '1' or netquery.get('allowInsecure') == '1':
-        node['tls']['insecure'] = True
+        tls['insecure'] = True
     if netquery.get('obfs') and netquery['obfs'] != 'none':
         node['obfs'] = netquery.get('obfs')
     return node

@@ -1,0 +1,16 @@
+line-length = 140
+target-version = "py313"
+
+exclude = [
+    ".venv",
+    ".vercel",
+    "__pycache__",
+    "config_template",
+]
+
+[lint]
+select = ["E4", "E7", "E9", "F", "UP", "B"]
+ignore = [
+    # The legacy parser modules still use compact multi-import style heavily.
+    "E401",
+]

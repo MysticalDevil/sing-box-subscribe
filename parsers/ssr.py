@@ -1,11 +1,14 @@
 import tool
-def parse(data):
+
+from parsers._typing import Node, ParseResult
+
+def parse(data: str) -> ParseResult:
     info = data[6:]
     if not info or info.isspace():
         return None
     try:
         proxy_str = tool.b64Decode(info).decode('utf-8')
-    except:
+    except Exception:
         proxy_str = info
     i = 0
     parts = proxy_str.split(':')
@@ -17,7 +20,7 @@ def parse(data):
             if ssr_obfs in parts[4]:
                 parts[5] = parts[4].split(ssr_obfs)[-1]
                 parts[4] = ssr_obfs
-    node = {
+    node: Node = {
         'tag':None,
         'type':'shadowsocksr',
         'server': parts[0],

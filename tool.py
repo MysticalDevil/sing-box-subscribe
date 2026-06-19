@@ -1,15 +1,24 @@
-import base64,requests,random,string,re,chardet,urllib.parse
+import base64
+import random
+import re
+import string
+import urllib.parse
 import warnings
+from typing import Any
+
+import chardet
+import requests
 from cryptography.utils import CryptographyDeprecationWarning
+
 with warnings.catch_warnings(action="ignore", category=CryptographyDeprecationWarning):
     import paramiko
 from scp import SCPClient
 
-def get_encoding(file):
+def get_encoding(file: str) -> str | None:
     with open(file,'rb') as f:
         return chardet.detect(f.read())['encoding']
-    
-def saveFile(path,content):
+
+def saveFile(path: str, content: str) -> None:
     file = open(path, mode='w',encoding='utf-8')
     file.write(content)
     file.close()
@@ -158,7 +167,7 @@ regex_patterns = {
     '🇦🇶': re.compile(r'南极|南極|(\s|-)?AQ\d*|Antarctica'),
     '🇨🇳': re.compile(r'中国|中國|江苏|北京|上海|广州|深圳|杭州|徐州|青岛|宁波|镇江|沈阳|济南|回国|back|(\s|-)?CN(?!2GIA)\d*|China'),
 }
-def rename(input_str):
+def rename(input_str: str) -> str:
     for country_code, pattern in regex_patterns.items():
         if input_str.startswith(country_code):
             return country_code + ' ' + input_str[len(country_code):].strip()
@@ -169,18 +178,18 @@ def rename(input_str):
                 return country_code + ' ' + input_str
     return input_str
 
-def b64Decode(str):
-    str = urllib.parse.unquote(str.strip())
-    str += (len(str)%4)*'='
-    return base64.urlsafe_b64decode(str)
+def b64Decode(value: str) -> bytes:
+    value = urllib.parse.unquote(value.strip())
+    value += (len(value)%4)*'='
+    return base64.urlsafe_b64decode(value)
 
-def readFile(path):
+def readFile(path: str) -> bytes:
     file = open(path,'rb')
     content = file.read()
     file.close()
     return content
 
-def noblankLine(data):
+def noblankLine(data: str) -> str:
     lines = data.splitlines()
     newdata = ''
     for index in range(len(lines)):
@@ -192,51 +201,57 @@ def noblankLine(data):
                 newdata += '\n'
     return newdata
 
-def firstLine(data):
+def firstLine(data: str) -> str | None:
     lines = data.splitlines()
     for line in lines:
         line = line.strip()
         if line:
             return line
 
-def genName(length=8):
+def genName(length: int = 8) -> str:
     name = ''
-    for i in range(length):
+    for _i in range(length):
         name += random.choice(string.ascii_letters+string.digits)
     return name
 
-def is_ip(str):
-    return re.search(r'^\d+\.\d+\.\d+\.\d+$',str)
+def is_ip(value: str) -> re.Match[str] | None:
+    return re.search(r'^\d+\.\d+\.\d+\.\d+$',value)
 
-def get_protocol(s):
-    try:
-        m = re.search(r'^(.+?)://', s)
-    except Exception as e:
-        return None
+def get_protocol(s: str) -> str | None:
+    m = re.search(r'^(.+?)://', s)
     if m:
         if m.group(1) == 'hy2':
             s = re.sub(r'^(.+?)://', 'hysteria2://', s)
             m = re.search(r'^(.+?)://', s)
+            if m is None:
+                return None
         if m.group(1) == 'wireguard':
             s = re.sub(r'^(.+?)://', 'wg://', s)
             m = re.search(r'^(.+?)://', s)
+            if m is None:
+                return None
         if m.group(1) == 'http2':
             s = re.sub(r'^(.+?)://', 'http://', s)
             m = re.search(r'^(.+?)://', s)
+            if m is None:
+                return None
         if m.group(1) == 'socks5':
             s = re.sub(r'^(.+?)://', 'socks://', s)
             m = re.search(r'^(.+?)://', s)
+            if m is None:
+                return None
         return m.group(1)
+    return None
 
-def checkKeywords(keywords,str):
+def checkKeywords(keywords: list[str], value: str) -> bool:
     if not keywords:
         return False
     for keyword in keywords:
-        if str.find(keyword)>-1:
+        if value.find(keyword)>-1:
             return True
     return False
 
-def filterNodes(nodelist,keywords):
+def filterNodes(nodelist: list[dict[str, Any]], keywords: list[str]) -> list[dict[str, Any]]:
     newlist = []
     if not keywords:
         return nodelist
@@ -248,7 +263,7 @@ def filterNodes(nodelist,keywords):
             print('Lọc tên proxy'+node['name'])
     return newlist
 
-def replaceStr(nodelist,keywords):
+def replaceStr(nodelist: list[dict[str, Any]], keywords: list[str]) -> list[dict[str, Any]]:
     if not keywords:
         return nodelist
     for node in nodelist:
@@ -256,7 +271,7 @@ def replaceStr(nodelist,keywords):
             node['name'] = node['name'].replace(k,'').strip()
     return nodelist
 
-def proDuplicateNodeName(nodes):
+def proDuplicateNodeName(nodes: dict[str, list[dict[str, Any]]]) -> None:
     names = []
     for key in nodes.keys():
         nodelist = nodes[key]
@@ -268,7 +283,7 @@ def proDuplicateNodeName(nodes):
                 index += 1
             names.append(node['tag'])
 
-def removeNodes(nodelist):
+def removeNodes(nodelist: list[dict[str, Any]]) -> list[dict[str, Any]]:
     newlist = []
     temp_list=[]
     i=0
@@ -285,12 +300,12 @@ def removeNodes(nodelist):
     print('Thực tế nhận được '+str(len(newlist))+' proxy')
     return newlist
 
-def prefixStr(nodelist,prestr):
+def prefixStr(nodelist: list[dict[str, Any]], prestr: str) -> list[dict[str, Any]]:
     for node in nodelist:
         node['name'] = prestr+node['name'].strip()
     return nodelist
 
-def getResponse(url, custom_user_agent=None):
+def getResponse(url: str, custom_user_agent: str | None = None) -> requests.Response | None:
     response = None
     headers = {
         'User-Agent': custom_user_agent if custom_user_agent else 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Safari/605.1.15'
@@ -302,35 +317,35 @@ def getResponse(url, custom_user_agent=None):
             return response
         else:
             return None
-    except:
+    except Exception:
         return None
-    
+
 class ConfigSSH:
-    server = {'ip':None,'port':22,'user':None,'password':''}
-    def __init__(self,server:dict) -> None:
+    server: dict[str, Any] = {'ip':None,'port':22,'user':None,'password':''}
+    def __init__(self,server:dict[str, Any]) -> None:
         for k in self.server:
-            if k != 'port' and not k in server.keys():
+            if k != 'port' and k not in server:
                 return None
-            if k in server.keys():
+            if k in server:
                 self.server[k] = server[k]
-    def connect(self):
+    def connect(self) -> None:
         ssh = paramiko.SSHClient()
         ssh.load_system_host_keys()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         ssh.connect(hostname=self.server['ip'],port=22, username=self.server['user'], password=self.server['password'])
         self.ssh = ssh
 
-    def execCMD(self,command:str):
+    def execCMD(self,command:str) -> None:
         stdin, stdout, stderr = self.ssh.exec_command(command) 
         print(stdout.read().decode('utf-8')) 
 
-    def uploadFile(self,source:str,target:str):
+    def uploadFile(self,source:str,target:str) -> None:
         scp = SCPClient(self.ssh.get_transport())
         scp.put(source, recursive=True, remote_path=target)
 
-    def getFile(self,remote:str,local:str):
+    def getFile(self,remote:str,local:str) -> None:
         scp = SCPClient(self.ssh.get_transport())
         scp.get(remote,local)
 
-    def close(self):
+    def close(self) -> None:
         self.ssh.close()
